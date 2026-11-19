@@ -116,6 +116,9 @@
 (defvar prism-face nil
   "Set by `prism-match' while applying faces.")
 
+;; Defined with `defcustom' below.
+(defvar prism-only-significant-tokens)
+
 (defvar-local prism-syntax-table nil
   "Syntax table used by `prism-mode'.
 Set automatically.")
@@ -232,7 +235,7 @@ modes."
 Depth is determined by list nesting.  Suitable for Lisp, C-like
 languages, etc."
   :global nil
-  (let ((keywords '((prism-match 0 prism-face prepend))))
+  (let ((keywords '((prism-match 0 (prism-highlight-face) prepend))))
     (if prism-mode
         (progn
           (dolist (mode (cl-remove 'prism-mode (prism-active-mode)))
@@ -267,7 +270,7 @@ Depth is determined by indentation and list nesting.  Suitable
 for whitespace-sensitive languages like Python, Haskell, shell,
 etc."
   :global nil
-  (let ((keywords '((prism-match-whitespace 0 prism-face prepend))))
+  (let ((keywords '((prism-match-whitespace 0 (prism-highlight-face) prepend))))
     (if prism-whitespace-mode
         (progn
           (dolist (mode (cl-remove 'prism-whitespace-mode (prism-active-mode)))
@@ -777,6 +780,40 @@ appropriately, e.g. to `python-indent-offset' for `python-mode'."
             ;; Be sure to return non-nil!
             t))))))
 
+;;;;; Significant tokens
+
+(defun prism-highlight-face ()
+  "Return the face to apply to the current `prism' match.
+When `prism-only-significant-tokens' is nil, return `prism-face'.
+Otherwise, apply `prism-face' only to the parts of the match that
+already have a non-`prism' face (e.g. keywords, function names,
+strings, comments), and return nil, so that the rest of the match
+keeps the default face."
+  (if (or (not prism-only-significant-tokens)
+          (null prism-face)
+          ;; Parens colorized via `prism-parens' are colorized
+          ;; regardless, as the user explicitly enabled that.
+          (rassq prism-face prism-faces-parens))
+      prism-face
+    (let ((pos (match-beginning 0))
+          (end (match-end 0)))
+      (while (< pos end)
+        (let ((next (next-single-property-change pos 'face nil end)))
+          (when (prism-significant-face-p (get-text-property pos 'face))
+            (font-lock-prepend-text-property pos next 'face prism-face))
+          (setf pos next))))
+    nil))
+
+(defun prism-significant-face-p (face)
+  "Return non-nil if FACE (a `face' property value) is not only `prism' faces."
+  (pcase face
+    ('nil nil)
+    ((pred symbolp)
+     (not (string-prefix-p "prism-level-" (symbol-name face))))
+    ;; An anonymous face, e.g. (:foreground "red").
+    (`(,(pred keywordp) . ,_) t)
+    ((pred consp) (cl-some #'prism-significant-face-p face))))
+
 (cl-defun prism-remove-faces (&optional (beg (point-min)))
   "Remove `prism' faces from buffer starting at BEG.
 Note a minor bug at the moment: anonymous faces are also
@@ -1196,6 +1233,22 @@ out.  See the PARENS-FN argument to the `prism-set-colors'
 function."
   :type 'boolean
   :set #'prism-customize-set)
+
+(defcustom prism-only-significant-tokens nil
+  "Whether to colorize only significant tokens.
+When non-nil, only text already highlighted by the major
+mode (e.g. keywords, function names, types, strings, and
+comments) is colorized according to depth; other text keeps the
+default face.  When nil, all text is colorized according to
+depth."
+  :type 'boolean
+  :set (lambda (option value)
+         (set-default option value)
+         (dolist (buffer (buffer-list))
+           (with-current-buffer buffer
+             (when (or (bound-and-true-p prism-mode)
+                       (bound-and-true-p prism-whitespace-mode))
+               (font-lock-flush))))))
 
 (defcustom prism-colors
   (list 'font-lock-type-face 'font-lock-function-name-face

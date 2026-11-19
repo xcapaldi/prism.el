@@ -182,6 +182,7 @@ The easiest way is to use [[https://framagit.org/steckerhalter/quelpa-use-packag
 +  If the colors aren't satisfactory, use command =prism-randomize-colors= to randomize the =prism= colors according to the current Emacs theme.  When you find a set you like, you may save the colors with command =prism-save-colors=.
 +  When a theme is loaded or disabled, and =prism-colors= is a list of faces (rather than a list of colors), =prism-colors= is automatically updated.  If =prism-colors= is a list of colors, call =prism-set-colors= or =prism-randomize-colors= manually to update for a new theme.
 +  To customize, see the =prism= customization group, e.g. by using @@html:<kbd>@@M-x customize-group RET prism RET@@html:</kbd>@@.  For example, by default, comments and strings are colorized according to depth, similarly to code, but this can be disabled.
++  For a less intense appearance, enable =prism-only-significant-tokens=: only text the major mode already highlights (keywords, function names, strings, etc.) is colorized according to depth, and other text keeps the default face.
 
 ** Advanced
 
@@ -219,6 +220,7 @@ Here's an example that the author finds pleasant (seen in the first screenshot):
 ** 0.4-pre
 
 *Additions*
++ Option ~prism-only-significant-tokens~, which colorizes only text already highlighted by the major mode (e.g. keywords, function names, strings, comments) according to depth, leaving other text in the default face.
 + Option ~prism-whitespace-mode-indents~ includes a default for ~yaml-mode~ buffers.
 
 *Changes*
